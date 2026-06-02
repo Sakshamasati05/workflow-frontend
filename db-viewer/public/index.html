@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workorder DB Viewer — Port 5002</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            #f8f9fc;
+      --surface:       #ffffff;
+      --border:        #e8eaed;
+      --border-light:  #f1f3f6;
+      --text-primary:  #111827;
+      --text-secondary:#6b7280;
+      --text-muted:    #9ca3af;
+      --accent:        #2563eb;
+      --accent-light:  #eff6ff;
+      --accent-border: #bfdbfe;
+      --green:         #16a34a;
+      --red:           #dc2626;
+      --shadow-sm:     0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md:     0 4px 16px rgba(0,0,0,.06), 0 2px 6px rgba(0,0,0,.04);
+      --radius:        10px;
+      --radius-sm:     6px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Topbar ──────────────────────────────── */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+
+    .brand-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .brand-text-main  { font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+    .brand-text-sub   { font-size: 11px; font-weight: 500; color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; margin-top: 1px; }
+
+    .topbar-pills {
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-secondary);
+    }
+
+    .pill-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .pill-dot-green  { background: #22c55e; }
+    .pill-dot-blue   { background: #3b82f6; }
+
+    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500; font-family: inherit;
+      cursor: pointer; border: none; transition: all .15s;
+      white-space: nowrap;
+    }
+
+    .btn-outline {
+      background: var(--surface); color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { border-color: #aab5c7; color: var(--text-primary); box-shadow: var(--shadow-sm); }
+
+    .btn-danger {
+      background: #fef2f2; color: var(--red);
+      border: 1px solid #fecaca;
+    }
+    .btn-danger:hover { background: #fee2e2; }
+
+    /* ── Layout ──────────────────────────────── */
+    .layout { display: flex; height: calc(100vh - 60px); }
+
+    /* ── Sidebar ─────────────────────────────── */
+    .sidebar {
+      width: 228px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto; flex-shrink: 0;
+    }
+
+    .sidebar-section {
+      padding: 18px 16px 6px;
+      font-size: 10px; font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 16px;
+      cursor: pointer; border: none; background: none;
+      width: 100%; text-align: left;
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      color: var(--text-secondary);
+      border-left: 3px solid transparent;
+      transition: all .12s;
+    }
+    .nav-item:hover  { background: var(--bg); color: var(--text-primary); }
+    .nav-item.active { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+    .nav-item.active .nav-count { background: var(--accent-border); color: var(--accent); }
+
+    .nav-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .nav-count {
+      margin-left: auto;
+      background: var(--border-light); color: var(--text-muted);
+      font-size: 11px; font-weight: 600;
+      padding: 1px 6px; border-radius: 20px; min-width: 22px; text-align: center;
+    }
+
+    .sidebar-divider { height: 1px; background: var(--border-light); margin: 8px 0; }
+
+    /* ── Main ────────────────────────────────── */
+    .main { flex: 1; overflow: auto; padding: 26px 28px; }
+
+    /* ── DB info strip ─────────────────────── */
+    .db-strip {
+      display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 11px 18px;
+      margin-bottom: 18px; box-shadow: var(--shadow-sm);
+    }
+    .db-chip { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .db-chip strong { color: var(--text-primary); font-weight: 600; }
+    .db-sep { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; }
+
+    /* ── Stats grid ──────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow .15s;
+    }
+    .stat-card:hover { box-shadow: var(--shadow-md); }
+
+    .stat-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    .stat-value { font-size: 22px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+    .stat-label { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-top: 3px; }
+
+    /* ── Table card ──────────────────────────── */
+    .table-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+
+    .table-toolbar {
+      padding: 14px 18px; border-bottom: 1px solid var(--border-light);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; flex-wrap: wrap;
+    }
+
+    .table-toolbar-left { display: flex; align-items: center; gap: 10px; }
+
+    .table-label { font-size: 14px; font-weight: 700; }
+
+    .row-badge {
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+      background: var(--bg); border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: 20px;
+    }
+
+    .table-search {
+      padding: 7px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-family: inherit;
+      font-size: 13px; color: var(--text-primary); background: var(--bg);
+      outline: none; width: 210px; transition: all .15s;
+    }
+    .table-search:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+    .table-search::placeholder { color: var(--text-muted); }
+
+    .table-wrap { overflow-x: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    thead tr { background: var(--bg); border-bottom: 1px solid var(--border); }
+
+    th {
+      padding: 10px 14px; text-align: left;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--text-muted); white-space: nowrap;
+      cursor: pointer; user-select: none;
+    }
+    th:hover { color: var(--text-primary); }
+    th.sorted .sort-arrow { color: var(--accent); opacity: 1; }
+    .sort-arrow { opacity: .35; margin-left: 3px; }
+
+    tbody tr { border-bottom: 1px solid var(--border-light); transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f5f8ff; }
+
+    td { padding: 10px 14px; color: var(--text-primary); max-width: 280px; word-break: break-word; }
+
+    .cell-id   { font-family: 'Courier New', monospace; font-size: 12px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .cell-trunc{ max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cell-null { color: var(--text-muted); font-style: italic; font-size: 12px; }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .s-draft        { background:#f3f4f6;  color:#374151;  border:1px solid #d1d5db; }
+    .s-pending      { background:#fffbeb;  color:#b45309;  border:1px solid #fcd34d; }
+    .s-approved     { background:#f0fdf4;  color:#16a34a;  border:1px solid #86efac; }
+    .s-rejected     { background:#fef2f2;  color:#dc2626;  border:1px solid #fca5a5; }
+    .s-cancelled    { background:#f9fafb;  color:#6b7280;  border:1px solid #d1d5db; }
+    .s-inprogress   { background:#eff6ff;  color:#2563eb;  border:1px solid #93c5fd; }
+    .s-completed    { background:#f0fdf4;  color:#166534;  border:1px solid #4ade80; }
+    .s-done         { background:#f0fdf4;  color:#15803d;  border:1px solid #86efac; }
+    .s-undone       { background:#fff7ed;  color:#c2410c;  border:1px solid #fb923c; }
+    .s-default      { background:#f3f4f6;  color:#6b7280;  border:1px solid #e5e7eb; }
+
+    /* Pagination */
+    .pager {
+      padding: 12px 18px; border-top: 1px solid var(--border-light);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .pager-info { font-size: 12px; color: var(--text-muted); }
+    .pager-btns { display: flex; align-items: center; gap: 3px; }
+    .pager-btn {
+      width: 30px; height: 30px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface); font-size: 13px; font-family: inherit;
+      cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
+      transition: all .12s;
+    }
+    .pager-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .pager-btn.active  { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .pager-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+    /* States */
+    .state { text-align: center; padding: 52px 24px; color: var(--text-muted); }
+    .state h3 { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+    .state p  { font-size: 13px; }
+    .spinner  {
+      width: 26px; height: 26px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #111827; color: #fff;
+      padding: 10px 18px; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      opacity: 0; transform: translateY(8px); transition: all .22s;
+      z-index: 999; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Section heading */
+    .section-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+    .section-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-text-main">Workorder DB Viewer</div>
+      <div class="brand-text-sub">Port 5002 · API → localhost:5001</div>
+    </div>
+  </div>
+
+  <div class="topbar-pills">
+    <span class="pill"><span class="pill-dot pill-dot-green"></span> Viewer :5002</span>
+    <span class="pill"><span class="pill-dot pill-dot-blue"></span> API :5001</span>
+  </div>
+
+  <div class="topbar-actions">
+    <button class="btn btn-outline" onclick="refreshAll()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+      Refresh
+    </button>
+    <button class="btn btn-outline" onclick="exportCSV()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Export CSV
+    </button>
+    <button class="btn btn-danger" id="resetBtn" onclick="handleReset()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      </svg>
+      Reset to Seed Data
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-section">Tables</div>
+
+    <button class="nav-item active" id="nav-workorders" onclick="showTable('workorders')">
+      <span class="nav-dot" style="background:#2563eb"></span>
+      workorders
+      <span class="nav-count" id="cnt-workorders">—</span>
+    </button>
+    <button class="nav-item" id="nav-groups" onclick="showTable('groups')">
+      <span class="nav-dot" style="background:#7c3aed"></span>
+      groups
+      <span class="nav-count" id="cnt-groups">—</span>
+    </button>
+    <button class="nav-item" id="nav-items" onclick="showTable('items')">
+      <span class="nav-dot" style="background:#0891b2"></span>
+      items
+      <span class="nav-count" id="cnt-items">—</span>
+    </button>
+    <button class="nav-item" id="nav-item_options" onclick="showTable('item_options')">
+      <span class="nav-dot" style="background:#059669"></span>
+      item_options
+      <span class="nav-count" id="cnt-item_options">—</span>
+    </button>
+    <button class="nav-item" id="nav-audit_trail" onclick="showTable('audit_trail')">
+      <span class="nav-dot" style="background:#d97706"></span>
+      audit_trail
+      <span class="nav-count" id="cnt-audit_trail">—</span>
+    </button>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Quick Views</div>
+
+    <button class="nav-item" onclick="runQuery(
+      `SELECT w.id, w.name, w.status, w.createdBy, w.createdAt,
+              COUNT(DISTINCT g.id) AS groups,
+              COUNT(i.id)          AS items
+       FROM workorders w
+       LEFT JOIN groups g ON g.workorderId = w.id
+       LEFT JOIN items  i ON i.groupId     = g.id
+       GROUP BY w.id ORDER BY w.rowid DESC`,
+      'Workorders Summary')">
+      <span class="nav-dot" style="background:#6b7280"></span>
+      Workorders Summary
+    </button>
+
+    <button class="nav-item" onclick="runQuery(
+      `SELECT i.id, i.name, i.category, i.type, i.executionStatus, i.value,
+              g.name AS groupName, g.workorderId
+       FROM items i JOIN groups g ON i.groupId = g.id
+       ORDER BY i.rowid DESC`,
+      'All Items + Group')">
+      <span class="nav-dot" style="background:#6b7280"></span>
+      Items with Group
+    </button>
+
+    <button class="nav-item" onclick="runQuery(
+      `SELECT a.id, a.action, a.user, a.timestamp, a.details, w.name AS workorder
+       FROM audit_trail a JOIN workorders w ON a.workorderId = w.id
+       ORDER BY a.rowid DESC LIMIT 200`,
+      'Recent Audit Events')">
+      <span class="nav-dot" style="background:#6b7280"></span>
+      Recent Audit Events
+    </button>
+
+    <button class="nav-item" onclick="runQuery(
+      `SELECT w.status, COUNT(*) AS count
+       FROM workorders w GROUP BY w.status ORDER BY count DESC`,
+      'Status Breakdown')">
+      <span class="nav-dot" style="background:#6b7280"></span>
+      Status Breakdown
+    </button>
+
+    <button class="nav-item" onclick="runQuery(
+      `SELECT io.itemId, io.optionText, io.sortOrder,
+              i.name AS itemName, g.workorderId
+       FROM item_options io
+       JOIN items i ON io.itemId = i.id
+       JOIN groups g ON i.groupId = g.id
+       ORDER BY io.rowid`,
+      'Options with Item')">
+      <span class="nav-dot" style="background:#6b7280"></span>
+      Options with Item
+    </button>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- DB info strip -->
+    <div class="db-strip" id="dbStrip">
+      <div class="db-chip">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>Connecting to backend…</span>
+      </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#eff6ff">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="sv-workorders">—</div>
+          <div class="stat-label">Workorders</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#f5f3ff">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="sv-groups">—</div>
+          <div class="stat-label">Groups</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#ecfeff">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="sv-items">—</div>
+          <div class="stat-label">Items</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#fffbeb">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="sv-audit">—</div>
+          <div class="stat-label">Audit Events</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#f0fdf4">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="sv-dbsize">—</div>
+          <div class="stat-label">DB Size</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table section -->
+    <div class="section-row">
+      <div>
+        <div class="section-title" id="sectionTitle">workorders</div>
+        <div class="section-sub"  id="sectionSub">Main workorder metadata and approval status</div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <!-- Filter bar: search + status + date (active only for workorders table) -->
+      <div id="filterBar" style="padding:12px 18px;border-bottom:1px solid var(--border-light);display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#fafbff;">
+        <!-- Search -->
+        <div style="position:relative;flex:1;min-width:200px;max-width:320px">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af;display:flex;align-items:center;pointer-events:none">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input id="filterSearch" type="text" placeholder="Search name, ID, creator…"
+            style="width:100%;padding:7px 30px 7px 32px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#111827;"
+            oninput="onFilterChange()" />
+          <button id="clearSearch" onclick="document.getElementById('filterSearch').value='';onFilterChange();"
+            style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;color:#9ca3af;font-size:17px;cursor:pointer;display:none;line-height:1;padding:0">×</button>
+        </div>
+
+        <!-- Status dropdown -->
+        <div style="flex-shrink:0">
+          <select id="filterStatus"
+            style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#374151;cursor:pointer;min-width:160px;"
+            onchange="onFilterChange()">
+            <option value="All">All Statuses</option>
+            <option value="Draft">Draft</option>
+            <option value="Pending Approval">Pending Approval</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Cancelled">Cancelled</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Pending Execution">Pending Execution</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+
+        <!-- Date picker -->
+        <div style="position:relative;flex-shrink:0">
+          <input id="filterDate" type="date"
+            style="padding:7px 30px 7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#374151;cursor:pointer;"
+            onchange="onFilterChange()" />
+          <button id="clearDate" onclick="document.getElementById('filterDate').value='';onFilterChange();"
+            style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#9ca3af;font-size:17px;cursor:pointer;display:none;line-height:1;padding:0">×</button>
+        </div>
+
+        <!-- Clear all -->
+        <button id="clearAllFilters" onclick="clearFilters()"
+          style="display:none;padding:7px 14px;font-size:12px;font-family:inherit;border:1px solid #fecaca;border-radius:6px;background:#fee2e2;color:#dc2626;cursor:pointer;font-weight:500;">
+          Clear Filters
+        </button>
+
+        <!-- Client search (non-workorders tables) -->
+        <div id="clientSearchWrap" style="display:none;flex:1;min-width:200px;max-width:320px;position:relative">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af;display:flex;align-items:center;pointer-events:none">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input id="searchBox" type="text" placeholder="Search all columns…"
+            style="width:100%;padding:7px 30px 7px 32px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#111827;"
+            oninput="onSearch(this.value)" />
+        </div>
+      </div>
+
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <span class="table-label" id="tableLabel">workorders</span>
+          <span class="row-badge"  id="rowBadge">0 rows</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <!-- empty: controls moved to filter bar above -->
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div id="tableBody">
+          <div class="state"><div class="spinner"></div><p>Loading…</p></div>
+        </div>
+      </div>
+
+      <div class="pager" id="pager" style="display:none">
+        <span class="pager-info" id="pagerInfo"></span>
+        <div class="pager-btns" id="pagerBtns"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Config ────────────────────────────────────────────────────────────────────
+  const API      = 'http://localhost:5001';   // Backend API (different port!)
+  const PAGE_SZ  = 25;
+
+  const TABLE_DESC = {
+    workorders:   'Main workorder metadata and approval status',
+    groups:       'Groups that organise items within a workorder',
+    items:        'Individual checklist tasks inside each group',
+    item_options: 'Dropdown option values for Single Select items',
+    audit_trail:  'Full history of changes and approval actions',
+  };
+
+  let allRows      = [];
+  let filteredRows = [];
+  let currentTable = 'workorders';
+  let currentPage  = 1;
+  let sortCol      = null;
+  let sortDir      = 1;
+  let isCustom     = false;
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function statusBadge(v) {
+    const map = {
+      'Draft':'s-draft','Pending Approval':'s-pending','Approved':'s-approved',
+      'Rejected':'s-rejected','Cancelled':'s-cancelled','In Progress':'s-inprogress',
+      'Pending Execution':'s-inprogress','Completed':'s-completed',
+      'Done':'s-done','Undone':'s-undone','Pending':'s-pending',
+    };
+    return `<span class="badge ${map[v] || 's-default'}">${esc(v)}</span>`;
+  }
+
+  // ── ID number padding: AUD-1 → AUD-01 ───────────────────────────────────────
+  function padIdNum(id) {
+    if (!id) return id;
+    // Pad the trailing numeric part to at least 2 digits: AUD-1→AUD-01, WO-1001→WO-1001
+    return String(id).replace(/^([A-Z]+-)(\d+)$/, (_, prefix, num) =>
+      prefix + String(num).padStart(2, '0')
+    );
+  }
+
+  function fmtCell(col, val) {
+    if (val === null || val === undefined || val === '')
+      return '<span class="cell-null">—</span>';
+    const cl = col.toLowerCase();
+    if (cl === 'status' || cl === 'executionstatus') return statusBadge(val);
+    if (cl === 'id' || cl.endsWith('id')) {
+      const padded = padIdNum(val);
+      return `<span class="cell-id">${esc(padded)}</span>`;
+    }
+    const s = String(val);
+    if (s.length > 60)
+      return `<span class="cell-trunc" title="${esc(s)}">${esc(s.slice(0,60))}…</span>`;
+    return esc(s);
+  }
+
+  // ── DB Info & Stats ────────────────────────────────────────────────────────────
+  async function loadDbInfo() {
+    try {
+      const info = await fetch(`${API}/api/db-info`).then(r => r.json());
+      const sz   = info.dbSize;
+      const szFmt = sz < 1024 ? `${sz} B`
+                  : sz < 1048576 ? `${(sz/1024).toFixed(1)} KB`
+                  : `${(sz/1048576).toFixed(2)} MB`;
+
+      document.getElementById('sv-workorders').textContent = info.counts.workorders;
+      document.getElementById('sv-groups').textContent     = info.counts.groups;
+      document.getElementById('sv-items').textContent      = info.counts.items;
+      document.getElementById('sv-dbsize').textContent     = szFmt;
+
+      // Sidebar counts from stats
+      document.getElementById('cnt-workorders').textContent = info.counts.workorders;
+      document.getElementById('cnt-groups').textContent     = info.counts.groups;
+      document.getElementById('cnt-items').textContent      = info.counts.items;
+
+      document.getElementById('dbStrip').innerHTML = `
+        <div class="db-chip">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <strong>workorders.db</strong> · connected
+        </div>
+        <div class="db-sep"></div>
+        <div class="db-chip">Size: <strong>${szFmt}</strong></div>
+        <div class="db-sep"></div>
+        <div class="db-chip">Journal: <strong>${info.journalMode.toUpperCase()}</strong></div>
+        <div class="db-sep"></div>
+        <div class="db-chip">Total rows: <strong>${info.counts.workorders + info.counts.groups + info.counts.items}</strong></div>
+        <div class="db-sep"></div>
+        <div class="db-chip">Viewer: <strong style="color:#2563eb">:5002</strong></div>
+        <div class="db-sep"></div>
+        <div class="db-chip">API: <strong style="color:#7c3aed">:5001</strong></div>
+      `;
+    } catch(e) {
+      document.getElementById('dbStrip').innerHTML =
+        `<div class="db-chip" style="color:#dc2626">⚠ Cannot reach backend at localhost:5001 — ${e.message}</div>`;
+    }
+  }
+
+  // ── Fetch table rows ──────────────────────────────────────────────────────────
+  async function loadTable(tbl) {
+    setLoading(tbl);
+    try {
+      const rows = await fetch(`${API}/api/db-table/${tbl}`).then(r => r.json());
+      allRows = rows;
+      const el = document.getElementById(`cnt-${tbl}`);
+      if (el) el.textContent = rows.length;
+      if (tbl === 'audit_trail') document.getElementById('sv-audit').textContent = rows.length;
+      renderRows(rows);
+    } catch(e) {
+      document.getElementById('tableBody').innerHTML =
+        `<div class="state"><h3>Could not load table</h3><p>${e.message}</p></div>`;
+    }
+  }
+
+  function setLoading(label) {
+    document.getElementById('tableBody').innerHTML =
+      `<div class="state"><div class="spinner"></div><p>Loading ${label}…</p></div>`;
+    document.getElementById('pager').style.display = 'none';
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+  function renderRows(rows) {
+    filteredRows = rows;
+    currentPage  = 1;
+    renderPage();
+  }
+
+  function renderPage() {
+    const total  = filteredRows.length;
+    const start  = (currentPage - 1) * PAGE_SZ;
+    const slice  = filteredRows.slice(start, start + PAGE_SZ);
+
+    document.getElementById('rowBadge').textContent =
+      `${total.toLocaleString()} row${total !== 1 ? 's' : ''}`;
+
+    if (!total) {
+      document.getElementById('tableBody').innerHTML =
+        `<div class="state">
+           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" style="margin:0 auto 10px;display:block"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+           <h3>No rows found</h3><p>Try a different search term.</p>
+         </div>`;
+      document.getElementById('pager').style.display = 'none';
+      return;
+    }
+
+    const cols = Object.keys(slice[0]);
+    let html = `<table><thead><tr>`;
+    cols.forEach(c => {
+      const sorted = sortCol === c;
+      const arrow  = sorted ? (sortDir === 1 ? '↑' : '↓') : '↕';
+      html += `<th class="${sorted ? 'sorted' : ''}" onclick="sortBy('${c}')">
+                 ${esc(c)} <span class="sort-arrow">${arrow}</span>
+               </th>`;
+    });
+    html += `</tr></thead><tbody>`;
+    slice.forEach(row => {
+      html += `<tr>` + cols.map(c => `<td>${fmtCell(c, row[c])}</td>`).join('') + `</tr>`;
+    });
+    html += `</tbody></table>`;
+
+    document.getElementById('tableBody').innerHTML = html;
+
+    // Pagination
+    const totalPages = Math.ceil(total / PAGE_SZ);
+    if (totalPages > 1) {
+      document.getElementById('pager').style.display = 'flex';
+      document.getElementById('pagerInfo').textContent =
+        `Showing ${start + 1}–${Math.min(start + PAGE_SZ, total)} of ${total.toLocaleString()}`;
+      buildPager(totalPages);
+    } else {
+      document.getElementById('pager').style.display = 'none';
+    }
+  }
+
+  function buildPager(totalPages) {
+    const pages = [];
+    for (let p = 1; p <= totalPages; p++) {
+      if (p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2) pages.push(p);
+      else if (pages[pages.length - 1] !== '…') pages.push('…');
+    }
+    let html = `<button class="pager-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+    pages.forEach(p => {
+      html += p === '…'
+        ? `<button class="pager-btn" disabled>…</button>`
+        : `<button class="pager-btn ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+    });
+    html += `<button class="pager-btn" onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+    document.getElementById('pagerBtns').innerHTML = html;
+  }
+
+  function goPage(p) {
+    const max = Math.ceil(filteredRows.length / PAGE_SZ);
+    if (p < 1 || p > max) return;
+    currentPage = p;
+    renderPage();
+  }
+
+  // ── Sort ──────────────────────────────────────────────────────────────────────
+  function sortBy(col) {
+    if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+    filteredRows = [...filteredRows].sort((a, b) => {
+      const va = a[col] ?? '', vb = b[col] ?? '';
+      return (typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb))) * sortDir;
+    });
+    currentPage = 1;
+    renderPage();
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────────
+  function onSearch(q) {
+    q = q.trim().toLowerCase();
+    filteredRows = q
+      ? allRows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)))
+      : allRows;
+    sortCol = null; sortDir = 1; currentPage = 1;
+    renderPage();
+  }
+
+  // ── Show table ────────────────────────────────────────────────────────────────
+  function showTable(tbl) {
+    currentTable = tbl; isCustom = false;
+    sortCol = null; sortDir = 1;
+    document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+    const nav = document.getElementById(`nav-${tbl}`);
+    if (nav) nav.classList.add('active');
+    // Reset all filters
+    clearFilters(false);
+    document.getElementById('sectionTitle').textContent = tbl;
+    document.getElementById('sectionSub').textContent   = TABLE_DESC[tbl] || '';
+    document.getElementById('tableLabel').textContent   = tbl;
+
+    // Toggle filter bar visibility
+    const isWO = (tbl === 'workorders');
+    document.getElementById('filterSearch').parentElement.style.display  = isWO ? '' : 'none';
+    document.getElementById('filterStatus').parentElement.style.display  = isWO ? '' : 'none';
+    document.getElementById('filterDate').parentElement.style.display    = isWO ? '' : 'none';
+    document.getElementById('clearAllFilters').style.display             = 'none';
+    document.getElementById('clientSearchWrap').style.display            = isWO ? 'none' : '';
+
+    if (isWO) loadWorkordersFiltered();
+    else      loadTable(tbl);
+  }
+
+  // ── Backend-powered workorders filter ─────────────────────────────────────────
+  let filterDebounce;
+  function onFilterChange() {
+    // Show/hide clear buttons
+    const s = document.getElementById('filterSearch').value;
+    const d = document.getElementById('filterDate').value;
+    const st = document.getElementById('filterStatus').value;
+    document.getElementById('clearSearch').style.display = s ? '' : 'none';
+    document.getElementById('clearDate').style.display   = d ? '' : 'none';
+    const anyActive = s || d || st !== 'All';
+    document.getElementById('clearAllFilters').style.display = anyActive ? '' : 'none';
+    clearTimeout(filterDebounce);
+    filterDebounce = setTimeout(loadWorkordersFiltered, 300); // 300ms debounce
+  }
+
+  async function loadWorkordersFiltered() {
+    const search = document.getElementById('filterSearch').value.trim();
+    const status = document.getElementById('filterStatus').value;
+    const date   = document.getElementById('filterDate').value;
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (status && status !== 'All') params.set('status', status);
+    if (date)   params.set('date', date);
+    const url = `${API}/api/workorders${params.toString() ? '?' + params : ''}`;
+    setLoading('workorders');
+    try {
+      const wos = await fetch(url).then(r => r.json());
+      // Flatten to table rows for display
+      const rows = wos.map(wo => ({
+        id:          wo.id,
+        name:        wo.name,
+        description: wo.description,
+        status:      wo.status,
+        createdBy:   wo.createdBy,
+        createdAt:   wo.createdAt,
+        groups:      wo.groups.length,
+        items:       wo.groups.reduce((s, g) => s + g.items.length, 0),
+        rejectionComment:    wo.rejectionComment,
+        cancellationComment: wo.cancellationComment,
+      }));
+      allRows = rows;
+      document.getElementById('cnt-workorders').textContent = rows.length;
+      renderRows(rows);
+    } catch(e) {
+      document.getElementById('tableBody').innerHTML =
+        `<div class="state"><h3>Could not load workorders</h3><p>${e.message}</p></div>`;
+    }
+  }
+
+  function clearFilters(reload = true) {
+    document.getElementById('filterSearch').value = '';
+    document.getElementById('filterStatus').value = 'All';
+    document.getElementById('filterDate').value   = '';
+    document.getElementById('clearSearch').style.display    = 'none';
+    document.getElementById('clearDate').style.display      = 'none';
+    document.getElementById('clearAllFilters').style.display = 'none';
+    document.getElementById('searchBox').value = '';
+    if (reload && currentTable === 'workorders') loadWorkordersFiltered();
+  }
+
+  // ── Custom query ──────────────────────────────────────────────────────────────
+  async function runQuery(sql, label) {
+    isCustom = true; sortCol = null; sortDir = 1;
+    document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+    document.getElementById('searchBox').value = '';
+    document.getElementById('sectionTitle').textContent = label;
+    document.getElementById('sectionSub').textContent   = 'Quick view · joined query';
+    document.getElementById('tableLabel').textContent   = label;
+    setLoading(label);
+
+    try {
+      const data = await fetch(`${API}/api/db-query`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ sql })
+      }).then(r => r.json());
+
+      if (data.success) { allRows = data.result; renderRows(data.result); }
+      else document.getElementById('tableBody').innerHTML =
+        `<div class="state"><h3>Query error</h3><p>${esc(data.error)}</p></div>`;
+    } catch(e) {
+      document.getElementById('tableBody').innerHTML =
+        `<div class="state"><h3>Request failed</h3><p>${e.message}</p></div>`;
+    }
+  }
+
+  // ── Export CSV ────────────────────────────────────────────────────────────────
+  function exportCSV() {
+    if (!filteredRows.length) { toast('No data to export'); return; }
+    const cols  = Object.keys(filteredRows[0]);
+    const lines = [
+      cols.join(','),
+      ...filteredRows.map(r => cols.map(c => `"${String(r[c] ?? '').replace(/"/g,'""')}"`).join(','))
+    ];
+    const a = document.createElement('a');
+    a.href     = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/csv'}));
+    a.download = `${currentTable}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    toast(`Exported ${filteredRows.length} rows`);
+  }
+
+  // ── Reset to seed ─────────────────────────────────────────────────────────────
+  async function handleReset() {
+    if (!confirm('Reset the database to default seed data? All changes will be lost.')) return;
+    document.getElementById('resetBtn').disabled = true;
+    try {
+      const r = await fetch(`${API}/api/reset`, {method:'POST'}).then(r => r.json());
+      toast(`Reset complete — ${r.data.length} workorders seeded`);
+      refreshAll();
+    } catch(e) {
+      toast('Reset failed: ' + e.message);
+    } finally {
+      document.getElementById('resetBtn').disabled = false;
+    }
+  }
+
+  // ── Refresh all ───────────────────────────────────────────────────────────────
+  function refreshAll() {
+    loadDbInfo();
+    if (!isCustom) loadTable(currentTable);
+    toast('Refreshed');
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────────
+  let _tTimer;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(_tTimer);
+    _tTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  // ── Audit trail count (separate fetch) ───────────────────────────────────────
+  async function fetchAuditCount() {
+    try {
+      const rows = await fetch(`${API}/api/db-table/audit_trail`).then(r => r.json());
+      document.getElementById('sv-audit').textContent        = rows.length;
+      document.getElementById('cnt-audit_trail').textContent = rows.length;
+    } catch(_) {}
+  }
+
+  async function fetchItemOptionsCount() {
+    try {
+      const rows = await fetch(`${API}/api/db-table/item_options`).then(r => r.json());
+      document.getElementById('cnt-item_options').textContent = rows.length;
+    } catch(_) {}
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  async function init() {
+    await loadDbInfo();
+    fetchAuditCount();
+    fetchItemOptionsCount();
+    showTable('workorders');
+  }
+
+  init();
+</script>
+</body>
+</html>
